@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:mvvm_boilerplate/data/repositories/api_repository.dart';
 import 'package:mvvm_boilerplate/data/sources/local/preferences_provider.dart';
 
@@ -17,8 +18,9 @@ class LoginCubit extends Cubit<LoginState> {
     required this.preferencesProvider,
   }) : super(LoginInitial());
 
-  TextEditingController txtUsername = TextEditingController(text: 'emilys');
-  TextEditingController txtPassword = TextEditingController(text: 'emilyspass');
+  final formKey = GlobalKey<FormState>();
+  TextEditingController txtUsername = TextEditingController(text: kDebugMode ? "emilys" : '');
+  TextEditingController txtPassword = TextEditingController(text: kDebugMode ? "emilyspass" : '');
 
   void login() async {
     try {

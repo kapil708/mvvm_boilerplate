@@ -5,6 +5,7 @@ import 'package:mvvm_boilerplate/core/route/route_names.dart';
 import 'package:mvvm_boilerplate/core/theme/app_css.dart';
 import 'package:mvvm_boilerplate/core/utils/spacing.dart';
 import 'package:mvvm_boilerplate/core/utils/ui_helper.dart';
+import 'package:mvvm_boilerplate/core/utils/validators.dart';
 import 'package:mvvm_boilerplate/presentation/common/custom_text_form_field.dart';
 import 'package:mvvm_boilerplate/presentation/common/loading_widget.dart';
 import 'package:mvvm_boilerplate/presentation/features/login/viewmodel/login_cubit.dart';
@@ -30,30 +31,42 @@ class LoginPage extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text("Login", style: AppCss.h3),
-                    const VSpace(16),
-                    Text("Please enter your login details below", style: AppCss.bodySmall),
-                    const VSpace(64),
-                    CustomTextFormField(
-                      controller: loginCubit.txtUsername,
-                      labelText: "User Name",
-                    ),
-                    const VSpace(16),
-                    CustomTextFormField(
-                      controller: loginCubit.txtPassword,
-                      labelText: "Password",
-                    ),
-                    const VSpace(32),
-                    FilledButton(
-                      style: FilledButton.styleFrom(minimumSize: Size.fromHeight(50)),
-                      onPressed: loginCubit.login,
-                      child: Text("Login"),
-                    ),
-                  ],
+                child: Form(
+                  key: loginCubit.formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("Login", style: AppCss.h3),
+                      const VSpace(16),
+                      Text("Please enter your login details below", style: AppCss.bodySmall),
+                      const VSpace(64),
+                      CustomTextFormField(
+                        controller: loginCubit.txtUsername,
+                        labelText: "User Name",
+                        validator: Validators.username,
+                        textInputAction: TextInputAction.next,
+                      ),
+                      const VSpace(16),
+                      CustomTextFormField(
+                        controller: loginCubit.txtPassword,
+                        labelText: "Password",
+                        obscureText: true,
+                        validator: Validators.password,
+                        textInputAction: TextInputAction.done,
+                      ),
+                      const VSpace(32),
+                      FilledButton(
+                        style: FilledButton.styleFrom(minimumSize: Size.fromHeight(50)),
+                        onPressed: () {
+                          if (loginCubit.formKey.currentState?.validate() ?? false) {
+                            loginCubit.login();
+                          }
+                        },
+                        child: Text("Login"),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (state is LoginLoading) LoadingWidget(),
