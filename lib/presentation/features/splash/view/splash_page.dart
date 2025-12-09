@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mvvm_boilerplate/core/assets/image_assets.dart';
-import 'package:mvvm_boilerplate/core/theme/app_css.dart';
-import 'package:mvvm_boilerplate/core/utils/spacing.dart';
+import 'package:mvvm_boilerplate/app.dart';
 
-import '../../../../core/route/route_names.dart';
 import '../viewmodel/splash_cubit.dart';
 
 class SplashPage extends StatelessWidget {
@@ -16,9 +13,9 @@ class SplashPage extends StatelessWidget {
     return BlocListener<SplashCubit, SplashState>(
       listener: (context, state) {
         if (state is SplashAuthorised) {
-          context.goNamed(RouteName.home);
+          context.goNamed(RouteName.home.name);
         } else if (state is SplashUnAuthorised) {
-          context.goNamed(RouteName.login);
+          context.goNamed(RouteName.login.name);
         }
       },
       child: Scaffold(

@@ -3,20 +3,17 @@ import 'dart:developer';
 
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
-import 'package:mvvm_boilerplate/core/utils/failures.dart';
+import 'package:mvvm_boilerplate/core/network/failures.dart';
 import 'package:mvvm_boilerplate/core/utils/network_info.dart';
-import 'package:mvvm_boilerplate/di/service_locator.dart';
 
 /// Base repository class with common API call patterns
 abstract class BaseRepository {
-  final NetworkInfo networkInfo = locator<NetworkInfo>();
-
   /// Safe API call wrapper with network check and error handling
   Future<Either<RemoteFailure, T>> safeApiCall<T>({
     required Future<dynamic> Function() apiCall,
     required T Function(dynamic json) modelFromJson,
   }) async {
-    if (await networkInfo.isConnected) {
+    if (await hasInternetConnection()) {
       try {
         final result = await apiCall();
         var data = result is String ? jsonDecode(result) : result;

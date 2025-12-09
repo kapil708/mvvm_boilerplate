@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mvvm_boilerplate/core/route/route_names.dart';
-import 'package:mvvm_boilerplate/core/theme/app_css.dart';
-import 'package:mvvm_boilerplate/core/utils/spacing.dart';
-import 'package:mvvm_boilerplate/core/utils/ui_helper.dart';
-import 'package:mvvm_boilerplate/core/utils/validators.dart';
-import 'package:mvvm_boilerplate/presentation/common/custom_text_form_field.dart';
-import 'package:mvvm_boilerplate/presentation/common/loading_widget.dart';
+import 'package:mvvm_boilerplate/app.dart';
 import 'package:mvvm_boilerplate/presentation/features/login/viewmodel/login_cubit.dart';
 
 class LoginPage extends StatelessWidget {
@@ -21,7 +15,7 @@ class LoginPage extends StatelessWidget {
       body: BlocConsumer<LoginCubit, LoginState>(
         listener: (context, state) {
           if (state is LoginAuthorised) {
-            context.goNamed(RouteName.home);
+            context.goNamed(RouteName.home.name);
           } else if (state is LoginError) {
             showAlertDialog(context: context, body: state.message);
           }

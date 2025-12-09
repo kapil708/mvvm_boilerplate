@@ -3,7 +3,7 @@ import 'package:mvvm_boilerplate/data/models/product/product.dart';
 import 'package:mvvm_boilerplate/data/models/user/user.dart';
 import 'package:mvvm_boilerplate/data/repositories/base_repository.dart';
 
-import '../../core/utils/failures.dart';
+import '../../core/network/failures.dart';
 import '../sources/remote/rest_client.dart';
 
 class APIRepository extends BaseRepository {

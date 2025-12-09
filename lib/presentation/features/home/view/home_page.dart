@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mvvm_boilerplate/core/route/route_names.dart';
-import 'package:mvvm_boilerplate/core/theme/app_css.dart';
-import 'package:mvvm_boilerplate/core/utils/ui_helper.dart';
+import 'package:mvvm_boilerplate/app.dart';
 import 'package:mvvm_boilerplate/presentation/features/home/viewmodel/home_cubit.dart';
 
 class HomePage extends StatelessWidget {
@@ -16,7 +14,7 @@ class HomePage extends StatelessWidget {
     return BlocConsumer<HomeCubit, HomeState>(
       listener: (context, state) {
         if (state is HomeLogout) {
-          context.goNamed(RouteName.login);
+          context.goNamed(RouteName.login.name);
         } else if (state is HomeError) {
           showAlertDialog(context: context, body: state.message);
         }

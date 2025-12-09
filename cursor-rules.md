@@ -9,7 +9,7 @@ This file defines the architectural patterns, coding standards, and project stru
 - **Dependency Injection**: GetIt
 - **Navigation**: GoRouter
 - **Network**: Dio + Retrofit
-- **Local Storage**: SharedPreferences + SQLite
+- **Local Storage**: SharedPreferences
 - **Localization**: Flutter Intl
 
 ## 📁 Project Structure
