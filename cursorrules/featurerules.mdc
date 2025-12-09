@@ -1,0 +1,638 @@
+# Feature Development Rules
+
+This document defines the patterns and guidelines for creating new features in the Flutter MVVM boilerplate project.
+
+## Feature Structure
+
+Every feature must follow this directory structure:
+
+```
+presentation/features/{feature_name}/
+├── view/
+│   └── {feature_name}_page.dart
+└── viewmodel/
+    ├── {feature_name}_cubit.dart
+    └── {feature_name}_state.dart
+```
+
+**Rules:**
+- Feature names should be singular and descriptive (e.g., `login`, `home`, `user_profile`, `product_detail`)
+- Use `snake_case` for feature directory names
+- Each feature must have `view/` and `viewmodel/` subdirectories
+- Files follow naming convention: `{feature_name}_page.dart`, `{feature_name}_cubit.dart`, `{feature_name}_state.dart`
+
+## Creating a New Feature
+
+### Step 1: Create Feature Directory Structure
+
+1. Create directory: `lib/presentation/features/{feature_name}/`
+2. Create `view/` subdirectory
+3. Create `viewmodel/` subdirectory
+
+### Step 2: Create State File
+
+Create `{feature_name}_state.dart` in the `viewmodel/` directory:
+
+```dart
+part of '{feature_name}_cubit.dart';
+
+sealed class {FeatureName}State extends Equatable {
+  const {FeatureName}State();
+}
+
+final class {FeatureName}Initial extends {FeatureName}State {
+  @override
+  List<Object> get props => [];
+}
+
+final class {FeatureName}Loading extends {FeatureName}State {
+  @override
+  List<Object> get props => [];
+}
+
+final class {FeatureName}Error extends {FeatureName}State {
+  final String message;
+
+  const {FeatureName}Error({required this.message});
+
+  @override
+  List<Object> get props => [message];
+}
+
+final class {FeatureName}Update extends {FeatureName}State {
+  final DateTime dateTime; // or other data
+
+  const {FeatureName}Update(this.dateTime);
+
+  @override
+  List<Object> get props => [dateTime];
+}
+```
+
+**State Rules:**
+- Use `sealed class` for the base state class
+- Use `final class` for each state variant
+- Always extend `Equatable` for state comparison
+- Include `props` getter for Equatable
+- Common states: `Initial`, `Loading`, `Error`, `Update`
+- Add custom states as needed (e.g., `Success`, `Empty`, `Authorised`, `UnAuthorised`)
+
+### Step 3: Create Cubit File
+
+Create `{feature_name}_cubit.dart` in the `viewmodel/` directory:
+
+```dart
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
+import 'package:mvvm_boilerplate/data/repositories/api_repository.dart';
+// Add other dependencies as needed
+
+part '{feature_name}_state.dart';
+
+class {FeatureName}Cubit extends Cubit<{FeatureName}State> {
+  final APIRepository apiRepository;
+  // Add other dependencies
+
+  {FeatureName}Cubit({
+    required this.apiRepository,
+    // Add other required parameters
+  }) : super({FeatureName}Initial());
+
+  // Optional: Add init method if feature needs initialization
+  void init() async {
+    try {
+      emit({FeatureName}Loading());
+      // Initialization logic here
+      emit({FeatureName}Update(DateTime.now()));
+    } catch (e) {
+      emit({FeatureName}Error(message: e.toString()));
+    }
+  }
+
+  // Add other methods as needed
+  void loadData() async {
+    try {
+      emit({FeatureName}Loading());
+      
+      var response = await apiRepository.someMethod();
+      
+      response.fold(
+        (failure) => emit({FeatureName}Error(message: failure.message)),
+        (data) {
+          // Process data
+          emit({FeatureName}Update(DateTime.now()));
+        },
+      );
+    } catch (e) {
+      emit({FeatureName}Error(message: e.toString()));
+    }
+  }
+}
+```
+
+**Cubit Rules:**
+- Extend `Cubit<{FeatureName}State>`
+- Inject dependencies through constructor
+- Use `emit()` to update state
+- Handle errors with try-catch
+- Use `Either<Failure, T>` pattern for API responses
+- Use `fold()` to handle success/failure cases
+
+### Step 4: Create Page File
+
+Create `{feature_name}_page.dart` in the `view/` directory:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mvvm_boilerplate/app.dart';
+import 'package:mvvm_boilerplate/core/theme/app_css.dart';
+import 'package:mvvm_boilerplate/presentation/features/{feature_name}/viewmodel/{feature_name}_cubit.dart';
+
+class {FeatureName}Page extends StatelessWidget {
+  const {FeatureName}Page({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    {FeatureName}Cubit {featureName}Cubit = context.read<{FeatureName}Cubit>();
+
+    return BlocConsumer<{FeatureName}Cubit, {FeatureName}State>(
+      listener: (context, state) {
+        if (state is {FeatureName}Error) {
+          showAlertDialog(context: context, body: state.message);
+        }
+        // Add navigation or other side effects here
+        // if (state is {FeatureName}Success) {
+        //   context.goNamed(RouteName.someRoute.name);
+        // }
+      },
+      builder: (context, state) {
+        return Scaffold(
+          appBar: AppBar(title: Text("{Feature Name}")),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // UI widgets here
+              if (state is {FeatureName}Loading) LoadingWidget(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+```
+
+**Page Rules:**
+- Use `StatelessWidget` (preferred) or `StatefulWidget` if needed
+- Use `BlocConsumer` for both listening and building
+- Use `BlocListener` if only listening (no building needed)
+- Access cubit with `context.read<{FeatureName}Cubit>()`
+- Handle navigation in the `listener` callback
+- Show loading states with `LoadingWidget()`
+- Use `AppCss` for all text styles (see [mdc:cursorrules/themerules.mdc])
+- Use `Theme.of(context).colorScheme` for colors
+
+### Step 5: Register Dependency in Service Locator
+
+Add the Cubit registration in `lib/di/service_locator.dart`:
+
+```dart
+// In setupLocator() function, under "Factory Features" section
+locator.registerFactory(() => {FeatureName}Cubit(
+  apiRepository: locator<APIRepository>(),
+  // Add other dependencies
+));
+```
+
+**Dependency Injection Rules:**
+- Use `registerFactory()` for Cubits (stateful, new instance per route)
+- Use `registerLazySingleton()` for stateless services
+- Register in the "Factory Features" section
+- Inject dependencies using `locator<Type>()`
+- Follow the registration order: External → Sources → Repositories → ViewModels
+
+### Step 6: Add Route Name
+
+Add route name to `lib/core/enums/route_names.dart`:
+
+```dart
+enum RouteName {
+  splash,
+  login,
+  home,
+  // ... existing routes
+  {feature_name}, // Add your feature route name
+}
+```
+
+**Route Name Rules:**
+- Use `camelCase` for route names (e.g., `userProfile`, `productDetail`)
+- Use singular form (e.g., `product`, not `products`)
+- Keep names descriptive and consistent
+
+### Step 7: Configure Route
+
+Add route configuration in `lib/core/route/app_router.dart`:
+
+```dart
+GoRoute(
+  path: '/{feature-name}', // Use kebab-case for paths
+  name: RouteName.{feature_name}.name,
+  builder: (context, state) => BlocProvider(
+    create: (_) => locator.get<{FeatureName}Cubit>()..init(), // Add ..init() if needed
+    child: const {FeatureName}Page(),
+  ),
+),
+```
+
+**Route Configuration Rules:**
+- Use `kebab-case` for paths (e.g., `/user-profile`, `/product-detail`)
+- Use `camelCase` for route names (e.g., `userProfile`, `productDetail`)
+- Always wrap page with `BlocProvider`
+- Use `locator.get<{FeatureName}Cubit>()` to get cubit instance
+- Call `..init()` if the cubit has an init method
+- Place routes in logical order
+
+### Step 8: Export in Import List
+
+Add exports to `lib/core/route/import_list.dart`:
+
+```dart
+export 'package:mvvm_boilerplate/presentation/features/{feature_name}/view/{feature_name}_page.dart';
+export 'package:mvvm_boilerplate/presentation/features/{feature_name}/viewmodel/{feature_name}_cubit.dart';
+```
+
+**Export Rules:**
+- Export both the page and cubit
+- Use absolute imports
+- Keep exports organized (group by feature)
+
+## Navigation Patterns
+
+### Navigation from View
+
+**Rule**: Navigation should happen in the view's `BlocConsumer` listener, not in the Cubit.
+
+```dart
+// ✅ CORRECT - Navigation in view listener
+BlocConsumer<LoginCubit, LoginState>(
+  listener: (context, state) {
+    if (state is LoginAuthorised) {
+      context.goNamed(RouteName.home.name);
+    }
+  },
+  builder: (context, state) {
+    // UI code
+  },
+)
+
+// ❌ WRONG - Don't navigate from Cubit
+class LoginCubit extends Cubit<LoginState> {
+  void login() {
+    // ... login logic
+    emit(LoginAuthorised());
+    // Don't navigate here
+  }
+}
+```
+
+### Navigation Methods
+
+```dart
+// Navigate to a route (replaces current route)
+context.goNamed(RouteName.home.name);
+
+// Navigate with path
+context.go('/home');
+
+// Push a new route (adds to stack)
+context.pushNamed(RouteName.productDetail.name, pathParameters: {'id': '123'});
+context.push('/products/123');
+
+// Replace current route
+context.pushReplacementNamed(RouteName.home.name);
+
+// Pop back
+context.pop();
+context.pop('result');
+```
+
+### Route Parameters
+
+```dart
+// In route definition
+GoRoute(
+  path: '/products/:id',
+  name: RouteName.productDetail.name,
+  builder: (context, state) {
+    final productId = state.pathParameters['id']!;
+    return BlocProvider(
+      create: (_) => locator.get<ProductDetailCubit>()..loadProduct(productId),
+      child: const ProductDetailPage(),
+    );
+  },
+)
+
+// In navigation
+context.goNamed(RouteName.productDetail.name, pathParameters: {'id': product.id.toString()});
+```
+
+### Query Parameters
+
+```dart
+// In navigation
+context.goNamed(RouteName.userProfile.name, queryParameters: {
+  'tab': 'settings',
+  'filter': 'active',
+});
+
+// In route builder
+GoRoute(
+  path: '/profile',
+  name: RouteName.userProfile.name,
+  builder: (context, state) {
+    final tab = state.uri.queryParameters['tab'] ?? 'overview';
+    return BlocProvider(
+      create: (_) => locator.get<UserProfileCubit>()..init(tab: tab),
+      child: const UserProfilePage(),
+    );
+  },
+)
+```
+
+## State Management Patterns
+
+### Using BlocConsumer
+
+Use `BlocConsumer` when you need both to listen to state changes and rebuild UI:
+
+```dart
+BlocConsumer<HomeCubit, HomeState>(
+  listener: (context, state) {
+    // Handle side effects (navigation, dialogs, etc.)
+    if (state is HomeError) {
+      showAlertDialog(context: context, body: state.message);
+    }
+    if (state is HomeLogout) {
+      context.goNamed(RouteName.login.name);
+    }
+  },
+  builder: (context, state) {
+    // Build UI based on state
+    if (state is HomeLoading) {
+      return LoadingWidget();
+    }
+    return HomeContent();
+  },
+)
+```
+
+### Using BlocListener
+
+Use `BlocListener` when you only need to listen to state changes (no rebuilding):
+
+```dart
+BlocListener<SplashCubit, SplashState>(
+  listener: (context, state) {
+    if (state is SplashAuthorised) {
+      context.goNamed(RouteName.home.name);
+    } else if (state is SplashUnAuthorised) {
+      context.goNamed(RouteName.login.name);
+    }
+  },
+  child: Scaffold(
+    // UI that doesn't depend on state
+  ),
+)
+```
+
+### Using BlocBuilder
+
+Use `BlocBuilder` when you only need to rebuild UI (no side effects):
+
+```dart
+BlocBuilder<HomeCubit, HomeState>(
+  builder: (context, state) {
+    if (state is HomeLoading) {
+      return LoadingWidget();
+    }
+    if (state is HomeError) {
+      return ErrorWidget(message: state.message);
+    }
+    return HomeContent();
+  },
+)
+```
+
+## Error Handling
+
+### In Cubit
+
+```dart
+void loadData() async {
+  try {
+    emit(FeatureLoading());
+    
+    var response = await apiRepository.getData();
+    
+    response.fold(
+      (failure) => emit(FeatureError(message: failure.message)),
+      (data) {
+        // Process data
+        emit(FeatureUpdate(DateTime.now()));
+      },
+    );
+  } catch (e) {
+    emit(FeatureError(message: e.toString()));
+  }
+}
+```
+
+### In View
+
+```dart
+BlocConsumer<FeatureCubit, FeatureState>(
+  listener: (context, state) {
+    if (state is FeatureError) {
+      showAlertDialog(context: context, body: state.message);
+    }
+  },
+  builder: (context, state) {
+    // UI code
+  },
+)
+```
+
+## Complete Feature Example
+
+### Directory Structure
+```
+presentation/features/demo/
+├── view/
+│   └── demo_page.dart
+└── viewmodel/
+    ├── demo_cubit.dart
+    └── demo_state.dart
+```
+
+### demo_state.dart
+```dart
+part of 'demo_cubit.dart';
+
+sealed class DemoState extends Equatable {
+  const DemoState();
+}
+
+final class DemoInitial extends DemoState {
+  @override
+  List<Object> get props => [];
+}
+
+final class DemoLoading extends DemoState {
+  @override
+  List<Object> get props => [];
+}
+
+final class DemoError extends DemoState {
+  final String message;
+
+  const DemoError({required this.message});
+
+  @override
+  List<Object> get props => [message];
+}
+
+final class DemoUpdate extends DemoState {
+  final DateTime date;
+
+  const DemoUpdate(this.date);
+
+  @override
+  List<Object> get props => [date];
+}
+```
+
+### demo_cubit.dart
+```dart
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
+import 'package:mvvm_boilerplate/data/repositories/api_repository.dart';
+
+part 'demo_state.dart';
+
+class DemoCubit extends Cubit<DemoState> {
+  final APIRepository apiRepository;
+
+  DemoCubit({required this.apiRepository}) : super(DemoInitial());
+
+  void init() async {
+    try {
+      // Initialization logic
+    } catch (e) {
+      // Error handling
+    }
+  }
+}
+```
+
+### demo_page.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:mvvm_boilerplate/core/theme/app_css.dart';
+import 'package:mvvm_boilerplate/presentation/features/demo/viewmodel/demo_cubit.dart';
+
+class DemoPage extends StatelessWidget {
+  const DemoPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    DemoCubit demoCubit = context.read<DemoCubit>();
+
+    return BlocConsumer<DemoCubit, DemoState>(
+      listener: (context, state) {
+        if (state is DemoError) {
+          // Error handling
+        }
+      },
+      builder: (context, state) {
+        return Scaffold(
+          appBar: AppBar(title: Text("Demo")),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Widgets here
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+```
+
+### service_locator.dart
+```dart
+locator.registerFactory(() => DemoCubit(apiRepository: locator<APIRepository>()));
+```
+
+### route_names.dart
+```dart
+enum RouteName {
+  // ... existing routes
+  demo,
+}
+```
+
+### app_router.dart
+```dart
+GoRoute(
+  path: '/demo',
+  name: RouteName.demo.name,
+  builder: (context, state) => BlocProvider(
+    create: (_) => locator.get<DemoCubit>()..init(),
+    child: const DemoPage(),
+  ),
+),
+```
+
+### import_list.dart
+```dart
+export 'package:mvvm_boilerplate/presentation/features/demo/view/demo_page.dart';
+export 'package:mvvm_boilerplate/presentation/features/demo/viewmodel/demo_cubit.dart';
+```
+
+## Best Practices
+
+1. **Keep features independent**: Features should not directly depend on other features
+2. **Use dependency injection**: All dependencies should be injected, never instantiated directly
+3. **Separate concerns**: View handles UI, Cubit handles business logic
+4. **Handle errors gracefully**: Always provide user-friendly error messages
+5. **Use proper state management**: Choose the right Bloc widget (Consumer, Listener, Builder)
+6. **Follow naming conventions**: Use consistent naming for files, classes, and routes
+7. **Keep states simple**: Each state should represent a single UI state
+8. **Use sealed classes**: For type-safe state handling
+9. **Navigate from views**: Keep navigation logic in the view, not in the Cubit
+10. **Export properly**: Always export feature files in import_list.dart
+
+## Common Mistakes to Avoid
+
+1. ❌ **Don't navigate from Cubit** - Navigation should happen in the view
+2. ❌ **Don't create dependencies directly** - Always use dependency injection
+3. ❌ **Don't forget to register Cubit** - Must register in service_locator.dart
+4. ❌ **Don't forget to add route** - Must configure route in app_router.dart
+5. ❌ **Don't forget to export** - Must export in import_list.dart
+6. ❌ **Don't use mutable state** - States should be immutable
+7. ❌ **Don't forget error handling** - Always handle errors in both Cubit and View
+8. ❌ **Don't mix UI and business logic** - Keep them separate
+
+## File Locations Reference
+
+- **Feature Views**: `lib/presentation/features/{feature_name}/view/`
+- **Feature ViewModels**: `lib/presentation/features/{feature_name}/viewmodel/`
+- **Service Locator**: `lib/di/service_locator.dart`
+- **Route Names**: `lib/core/enums/route_names.dart`
+- **Router Configuration**: `lib/core/route/app_router.dart`
+- **Import List**: `lib/core/route/import_list.dart`

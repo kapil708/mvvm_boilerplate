@@ -1,0 +1,379 @@
+# Theme and Styling Rules
+
+This document defines the theme system, styling patterns, and design guidelines for the Flutter MVVM boilerplate project.
+
+## Theme System Overview
+
+The project uses a centralized theme system with three main components:
+- **AppCss**: Text styles and typography
+- **MaterialTheme**: Color schemes and theme configuration
+- **Scale**: Spacing, sizing, and design tokens
+
+## Text Styles - AppCss
+
+### Rule: Always Use AppCss for Text Styles
+
+**NEVER** use `Theme.of(context).textTheme` or hardcoded `TextStyle` objects. **ALWAYS** use `AppCss` for all text styles.
+
+### Available Text Styles
+
+#### Headings
+- `AppCss.h1` - 72px, medium weight
+- `AppCss.h2` - 56px, medium weight
+- `AppCss.h3` - 44px, medium weight
+- `AppCss.h4` - 40px, medium weight
+- `AppCss.h5` - 32px, medium weight
+- `AppCss.h6` - 28px, medium weight
+
+#### Body Text
+- `AppCss.bodyXXL` - 50px
+- `AppCss.bodyExtraLarge` - 40px
+- `AppCss.bodyLarge` - 32px
+- `AppCss.bodyLargeSemibold` - 32px, semibold
+- `AppCss.bodyBase` - 28px
+- `AppCss.bodyBaseSemibold` - 28px, semibold
+- `AppCss.bodySmall` - 24px
+- `AppCss.bodySmallSemiBold` - 24px, semibold
+
+#### Captions
+- `AppCss.caption` - 20px
+- `AppCss.captionSmall` - 16px
+
+### Usage Examples
+
+```dart
+// ✅ CORRECT - Use AppCss
+Text("Welcome", style: AppCss.h3)
+Text("Description", style: AppCss.bodyBase)
+Text("Price", style: AppCss.caption)
+
+// ❌ WRONG - Don't use Theme textTheme
+Text("Welcome", style: Theme.of(context).textTheme.headlineLarge)
+
+// ❌ WRONG - Don't hardcode TextStyle
+Text("Welcome", style: TextStyle(fontSize: 44, fontWeight: FontWeight.w500))
+```
+
+### Modifying AppCss Styles
+
+Use `TextStyleExtensions` to modify AppCss styles when needed:
+
+```dart
+// Change color
+Text("Error", style: AppCss.bodyBase.textColor(Colors.red))
+
+// Change size (use sparingly, prefer predefined styles)
+Text("Custom", style: AppCss.bodyBase.size(30))
+
+// Change weight
+Text("Bold", style: AppCss.bodyBase.bold)
+
+// Combine modifications
+Text("Custom", style: AppCss.bodyBase.semiBold.textColor(Colors.blue))
+```
+
+### Available TextStyle Extensions
+
+- **Weights**: `.thin`, `.extraLight`, `.light`, `.regular`, `.medium`, `.semiBold`, `.bold`, `.extraBold`, `.black`
+- **Styles**: `.italic`
+- **Decorations**: `.underline`, `.lineThrough`, `.overLine`
+- **Colors**: `.textColor(Color)`, `.textBackgroundColor(Color)`
+- **Sizing**: `.size(double)`, `.scale(double)`
+- **Spacing**: `.letterSpace(double)`, `.wordSpace(double)`, `.textHeight(double)`
+
+## Colors - ColorScheme
+
+### Rule: Always Use ColorScheme for Colors
+
+**NEVER** use hardcoded `Color` values. **ALWAYS** use `Theme.of(context).colorScheme` to access colors.
+
+### Accessing Colors
+
+```dart
+// ✅ CORRECT - Use colorScheme
+final colorScheme = Theme.of(context).colorScheme;
+Container(color: colorScheme.primary)
+Text("Error", style: AppCss.bodyBase.textColor(colorScheme.error))
+
+// ❌ WRONG - Don't hardcode colors
+Container(color: Color(0xff5e621b))
+Text("Error", style: AppCss.bodyBase.textColor(Colors.red))
+```
+
+### Available ColorScheme Properties
+
+#### Primary Colors
+- `colorScheme.primary` - Primary brand color
+- `colorScheme.onPrimary` - Text/icon color on primary
+- `colorScheme.primaryContainer` - Container color for primary
+- `colorScheme.onPrimaryContainer` - Text/icon color on primary container
+
+#### Secondary Colors
+- `colorScheme.secondary` - Secondary brand color
+- `colorScheme.onSecondary` - Text/icon color on secondary
+- `colorScheme.secondaryContainer` - Container color for secondary
+- `colorScheme.onSecondaryContainer` - Text/icon color on secondary container
+
+#### Error Colors
+- `colorScheme.error` - Error color
+- `colorScheme.onError` - Text/icon color on error
+- `colorScheme.errorContainer` - Container color for error
+- `colorScheme.onErrorContainer` - Text/icon color on error container
+
+#### Surface Colors
+- `colorScheme.surface` - Surface background color
+- `colorScheme.onSurface` - Text/icon color on surface
+- `colorScheme.surfaceVariant` - Variant surface color (e.g., input fields)
+- `colorScheme.onSurfaceVariant` - Text/icon color on surface variant
+
+#### Outline Colors
+- `colorScheme.outline` - Outline/border color
+- `colorScheme.outlineVariant` - Variant outline color
+
+### Usage Examples
+
+```dart
+// Input field border
+BorderSide(color: colorScheme.outline)
+
+// Input field background
+fillColor: colorScheme.surfaceVariant
+
+// Input field hint text
+color: colorScheme.onSurfaceVariant
+
+// Error text
+errorStyle: AppCss.bodyLarge.textColor(colorScheme.error)
+
+// Primary button background
+backgroundColor: colorScheme.primary
+
+// Text on primary button
+color: colorScheme.onPrimary
+```
+
+## Theme Configuration - MaterialTheme
+
+### Rule: Use MaterialTheme for Theme Setup
+
+The `MaterialTheme` class provides theme configuration. It should only be used in the root app widget (`MyApp`).
+
+### Usage in App Setup
+
+```dart
+// In my_app.dart
+MaterialTheme theme = MaterialTheme();
+
+MaterialApp.router(
+  theme: theme.light(),
+  darkTheme: theme.dark(),
+  themeMode: state.selectedThemeMode.value,
+  // ...
+)
+```
+
+### Available Theme Methods
+
+- `MaterialTheme().light()` - Light theme
+- `MaterialTheme().dark()` - Dark theme
+- `MaterialTheme().lightMediumContrast()` - Light theme with medium contrast
+- `MaterialTheme().lightHighContrast()` - Light theme with high contrast
+- `MaterialTheme().darkMediumContrast()` - Dark theme with medium contrast
+- `MaterialTheme().darkHighContrast()` - Dark theme with high contrast
+
+### Modifying Theme
+
+To modify theme colors, edit `MaterialTheme` class in `lib/core/theme/theme.dart`:
+- Modify `lightScheme()` for light theme colors
+- Modify `darkScheme()` for dark theme colors
+- The theme automatically adapts to light/dark mode
+
+## Design Tokens - Scale
+
+### Spacing - Insets
+
+Use `Insets` for consistent spacing values:
+
+```dart
+// ✅ CORRECT - Use Insets
+padding: EdgeInsets.all(Insets.i16)
+padding: EdgeInsets.symmetric(horizontal: Insets.i12, vertical: Insets.i8)
+
+// ❌ WRONG - Don't hardcode spacing
+padding: EdgeInsets.all(16)
+padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+```
+
+**Available Insets**: `i1`, `i2`, `i3`, `i4`, `i5`, `i6`, `i8`, `i10`, `i12`, `i13`, `i15`, `i16`, `i18`, `i20`, `i24`, `i25`, `i30`, `i40`, `i55`, `i60`
+
+### Border Radius - AppRadius
+
+Use `AppRadius` for consistent border radius values:
+
+```dart
+// ✅ CORRECT - Use AppRadius
+BorderRadius.circular(AppRadius.r12)
+BorderRadius.circular(AppRadius.r16)
+
+// ❌ WRONG - Don't hardcode radius
+BorderRadius.circular(12)
+BorderRadius.circular(16)
+```
+
+**Available Radius**: `r6`, `r8`, `r12`, `r14`, `r16`, `r24`
+
+### Sizing - Sizes
+
+Use `Sizes` for consistent size values (width, height, etc.):
+
+```dart
+// ✅ CORRECT - Use Sizes
+width: Sizes.s100
+height: Sizes.s50
+SizedBox(width: Sizes.s16, height: Sizes.s24)
+
+// ❌ WRONG - Don't hardcode sizes
+width: 100
+height: 50
+```
+
+**Available Sizes**: `s1` through `s600` (see `scale.dart` for complete list)
+
+### Font Sizes - FontSizes
+
+**Note**: Prefer using `AppCss` text styles instead of `FontSizes`. Only use `FontSizes` when absolutely necessary for custom sizing.
+
+**Available FontSizes**: `s10`, `s12`, `s14`, `s16`, `s18`, `s20`
+
+### Button Heights - ButtonHeight
+
+Use `ButtonHeight` for consistent button heights:
+
+```dart
+// ✅ CORRECT - Use ButtonHeight
+height: ButtonHeight.h50
+
+// ❌ WRONG - Don't hardcode button height
+height: 50
+```
+
+**Available Heights**: `h50`
+
+### Durations - CustomDurations
+
+Use `CustomDurations` for consistent animation durations:
+
+```dart
+// ✅ CORRECT - Use CustomDurations
+Duration(milliseconds: CustomDurations.fast.inMilliseconds)
+animationDuration: CustomDurations.medium
+
+// ❌ WRONG - Don't hardcode durations
+Duration(milliseconds: 250)
+```
+
+**Available Durations**: `fastest` (150ms), `fast` (250ms), `medium` (350ms), `slow` (700ms), `slower` (1000ms), `slowest` (5000ms)
+
+### Fonts - Fonts
+
+Use `Fonts` for font family names:
+
+```dart
+// ✅ CORRECT - Use Fonts
+fontFamily: Fonts.inter
+
+// ❌ WRONG - Don't hardcode font names
+fontFamily: "Inter"
+```
+
+**Available Fonts**: `inter`
+
+## Complete Usage Examples
+
+### Text Widget with AppCss and ColorScheme
+
+```dart
+Text(
+  "Welcome",
+  style: AppCss.h3.textColor(Theme.of(context).colorScheme.onSurface),
+)
+```
+
+### Input Field with Theme
+
+```dart
+CustomTextFormField(
+  style: AppCss.bodyXXL,
+  fillColor: Theme.of(context).colorScheme.surfaceVariant,
+  // Error style automatically uses colorScheme.error
+)
+```
+
+### Container with Theme Colors and Spacing
+
+```dart
+Container(
+  padding: EdgeInsets.all(Insets.i16),
+  margin: EdgeInsets.symmetric(horizontal: Insets.i12, vertical: Insets.i8),
+  decoration: BoxDecoration(
+    color: Theme.of(context).colorScheme.primaryContainer,
+    borderRadius: BorderRadius.circular(AppRadius.r12),
+    border: Border.all(
+      color: Theme.of(context).colorScheme.outline,
+      width: 1,
+    ),
+  ),
+  child: Text(
+    "Content",
+    style: AppCss.bodyBase.textColor(
+      Theme.of(context).colorScheme.onPrimaryContainer,
+    ),
+  ),
+)
+```
+
+### Button with Theme
+
+```dart
+ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Theme.of(context).colorScheme.primary,
+    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    minimumSize: Size(double.infinity, ButtonHeight.h50),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.r12),
+    ),
+    padding: EdgeInsets.symmetric(horizontal: Insets.i16, vertical: Insets.i12),
+  ),
+  onPressed: () {},
+  child: Text("Submit", style: AppCss.bodyBaseSemibold),
+)
+```
+
+## Best Practices
+
+1. **Always use AppCss for text styles** - Never use `Theme.of(context).textTheme` or hardcoded `TextStyle`
+2. **Always use ColorScheme for colors** - Never hardcode color values
+3. **Use design tokens for spacing/sizing** - Use `Insets`, `AppRadius`, `Sizes` instead of hardcoded values
+4. **Modify styles with extensions** - Use `TextStyleExtensions` to modify AppCss styles when needed
+5. **Prefer predefined styles** - Use existing AppCss styles rather than creating custom ones
+6. **Maintain consistency** - Use the same style tokens throughout the app
+7. **Theme-aware** - All colors should adapt to light/dark mode automatically via ColorScheme
+8. **Accessibility** - Use appropriate color contrasts (onPrimary, onSurface, etc.)
+
+## Common Mistakes to Avoid
+
+1. ❌ **Don't use `Theme.of(context).textTheme`** - Always use `AppCss`
+2. ❌ **Don't hardcode colors** - Always use `colorScheme`
+3. ❌ **Don't hardcode spacing** - Always use `Insets`
+4. ❌ **Don't hardcode border radius** - Always use `AppRadius`
+5. ❌ **Don't create custom TextStyle** - Use `AppCss` and modify with extensions
+6. ❌ **Don't use Colors.red, Colors.blue, etc.** - Use `colorScheme.error`, `colorScheme.primary`, etc.
+7. ❌ **Don't use EdgeInsets.all(16)** - Use `EdgeInsets.all(Insets.i16)`
+
+## File Locations
+
+- **AppCss**: `lib/core/theme/app_css.dart`
+- **MaterialTheme**: `lib/core/theme/theme.dart`
+- **Scale (Insets, AppRadius, etc.)**: `lib/core/theme/scale.dart`
+- **TextStyle Extensions**: `lib/core/utils/textstyle_extensions.dart`

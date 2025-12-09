@@ -1,0 +1,313 @@
+# Project Structure Rules
+
+This document defines the project structure, directory organization, and naming conventions for the Flutter MVVM boilerplate project.
+
+## Root-Level Structure
+
+```
+mvvm_boilerplate/
+├── android/              # Android platform-specific code
+├── assets/               # Static assets (images, SVGs, etc.)
+│   ├── images/          # Image assets
+│   └── svgs/            # SVG assets
+├── build/               # Build output (generated, not committed)
+├── cursorrules/         # Cursor AI rule files
+├── fonts/               # Custom font files
+├── lib/                 # Main application source code
+├── l10n.yaml           # Localization configuration
+├── pubspec.yaml        # Flutter project dependencies
+└── README.md           # Project documentation
+```
+
+## lib/ Directory Structure
+
+The `lib/` directory follows MVVM architecture pattern:
+
+```
+lib/
+├── main.dart            # Production entry point
+├── main.develop.dart   # Development entry point
+├── app.dart            # App widget configuration
+├── bootstrap.dart      # App initialization and setup
+├── core/               # Shared utilities and configurations
+│   ├── assets/        # Asset path constants
+│   ├── constants/     # App-wide constants
+│   ├── enums/         # Application enums
+│   ├── network/       # Network-related utilities
+│   ├── route/         # Navigation configuration
+│   ├── services/      # Shared services
+│   ├── theme/         # Theme and styling
+│   └── utils/         # Utility functions and extensions
+├── data/               # Data layer (Repository pattern)
+│   ├── models/        # Data models with JSON serialization
+│   ├── repositories/  # Repository implementations
+│   └── sources/       # Data sources (local/remote)
+│       ├── local/     # Local data sources
+│       └── remote/    # Remote data sources
+├── di/                 # Dependency injection
+├── l10n/               # Localization files (generated)
+└── presentation/       # Presentation layer (UI)
+    ├── app/           # App-level configuration
+    ├── common/        # Reusable UI components
+    └── features/      # Feature-based modules
+        └── {feature}/
+            ├── view/  # UI components
+            └── viewmodel/  # State management
+```
+
+## Directory Purposes and Usage
+
+### core/
+
+**Purpose**: Shared utilities, constants, and configurations used across the entire application. This is the foundation layer that other layers depend on.
+
+**Subdirectories:**
+- **assets/**: Centralized asset path constants
+  - **How to use**: Create constants for image and SVG paths
+  - **Example**: `ImageAssets.logo`, `SvgAssets.addIcon`
+  
+- **constants/**: App-wide constant values
+  - **How to use**: Define app-wide constants like API endpoints, timeouts, etc.
+  - **Example**: `AppConstants.apiTimeout`, `AppConstants.maxRetries`
+  
+- **enums/**: Application-wide enumerations
+  - **How to use**: Create one enum per file, file name matches enum name in snake_case
+  - **Example**: `app_theme_mode.dart` contains `AppThemeMode` enum
+  
+- **network/**: Network error handling and failure types
+  - **How to use**: Define custom exceptions and failure classes for network operations
+  
+- **route/**: Navigation configuration and route definitions
+  - **How to use**: Define routes in `app_router.dart`, add route names to `route_names.dart` enum
+  - **How to add route**: Add route name to enum, configure in router, export in `import_list.dart`
+  
+- **services/**: Shared services (for future use)
+  - **How to use**: Place shared services that don't fit in other categories
+  
+- **theme/**: Theme configuration, styling, and design system
+  - **How to use**: Define app theme, text styles, colors, and design tokens
+  - **Example**: `AppCss` for text styles, `Theme` for theme configuration
+  
+- **utils/**: Utility functions, extensions, and helper classes
+  - **How to use**: Create utility files for specific purposes (e.g., `string_extensions.dart`, `validators.dart`)
+  - **Naming**: Use `_extensions.dart` suffix for extension files
+
+### data/
+
+**Purpose**: Implements the data layer following the Repository pattern. Handles all data operations, API calls, and local storage.
+
+**Subdirectories:**
+- **models/**: Data models with JSON serialization
+  - **How to create**: Create a directory for each model (e.g., `user/`, `product/`)
+  - **Structure**: Each model directory contains `{model}.dart` and `{model}.g.dart` (generated)
+  - **Export**: Add model export to `models/index.dart` barrel file
+  - **Example**: `data/models/user/user.dart` with `@JsonSerializable()` annotation
+  
+- **repositories/**: Repository implementations that abstract data sources
+  - **How to create**: Extend `BaseRepository` for common functionality
+  - **Purpose**: Abstract data source operations, provide clean API to presentation layer
+  - **Example**: `APIRepository` that uses `RestClient` and `PreferencesProvider`
+  
+- **sources/**: Concrete data source implementations
+  - **local/**: Local data sources (SharedPreferences, local database, etc.)
+    - **How to create**: Create provider classes for local storage operations
+    - **Example**: `PreferencesProvider` for SharedPreferences operations
+  - **remote/**: Remote data sources (API clients)
+    - **How to create**: Use Retrofit for API clients, Dio for HTTP client
+    - **Example**: `RestClient` with Retrofit annotations, `DioClient` for Dio configuration
+
+### di/
+
+**Purpose**: Dependency injection configuration using GetIt. All service registrations happen here.
+
+**How to use:**
+- Register factories for stateful objects (Cubits/Blocs) in `service_locator.dart`
+- Register lazy singletons for stateless services
+- Register external dependencies (SharedPreferences, etc.)
+- Follow registration order: External → Sources → Repositories → ViewModels
+
+**Example:**
+```dart
+// Factory for Cubits (stateful)
+locator.registerFactory(() => HomeCubit(...));
+
+// LazySingleton for services (stateless)
+locator.registerLazySingleton(() => APIRepository(...));
+```
+
+### l10n/
+
+**Purpose**: Localization files. ARB files define translations, and generated Dart files provide type-safe access.
+
+**How to use:**
+- Add translation keys to `.arb` files (e.g., `app_en.arb`, `app_hi.arb`)
+- Run `flutter gen-l10n` to generate Dart files
+- Use generated `AppLocalizations` class in code
+
+### presentation/
+
+**Purpose**: UI layer following MVVM pattern. Contains all user interface code and view models (Bloc/Cubit).
+
+**Subdirectories:**
+- **app/**: App-level widgets and state management
+  - **view/**: Root app widget
+  - **viewmodel/**: App-level state management (Bloc/Cubit)
+  
+- **common/**: Reusable UI components shared across features
+  - **How to use**: Place widgets that are used in multiple features
+  - **Example**: `CustomTextFormField`, `LoadingWidget`
+  
+- **features/**: Feature-based modules
+  - **Structure**: Each feature must have `view/` and `viewmodel/` subdirectories
+  - **How to create**: Create feature directory, add `view/` and `viewmodel/` subdirectories
+  - **Naming**: Feature names should be singular and descriptive (e.g., `login`, `home`, `user_profile`)
+
+## Feature Module Structure
+
+Every feature in `presentation/features/` must follow this structure:
+
+```
+feature_name/
+├── view/                    # UI components (Pages, Widgets)
+│   └── {feature}_page.dart
+└── viewmodel/               # State management (Cubit/Bloc)
+    ├── {feature}_cubit.dart
+    └── {feature}_state.dart
+```
+
+**Rules:**
+- Each feature is self-contained with its own view and viewmodel
+- View files contain only UI code (StatelessWidget or StatefulWidget)
+- ViewModel files contain business logic and state management
+- Feature names should be singular and descriptive
+
+**How to create a new feature:**
+1. Create directory: `presentation/features/{feature_name}/`
+2. Create `view/` subdirectory with `{feature_name}_page.dart`
+3. Create `viewmodel/` subdirectory with `{feature_name}_cubit.dart` and `{feature_name}_state.dart`
+4. Register Cubit in `di/service_locator.dart`
+5. Add route in `core/route/app_router.dart`
+6. Export in `core/route/import_list.dart`
+
+## File Naming Conventions
+
+### Files
+- **Format**: `snake_case.dart`
+- **Examples**: `home_page.dart`, `login_cubit.dart`, `api_repository.dart`
+
+### Classes
+- **Format**: `PascalCase`
+- **Examples**: `HomePage`, `LoginCubit`, `APIRepository`
+
+### Directories
+- **Format**: `snake_case`
+- **Examples**: `presentation/`, `data/`, `user_profile/`
+
+### Generated Files
+- Generated files use `.g.dart` extension
+- Never manually edit generated files
+- Regenerate using `dart run build_runner build`
+
+## Import Organization
+
+Imports should be organized in the following order:
+
+1. **Dart SDK imports** (`dart:...`)
+2. **Flutter imports** (`package:flutter/...`)
+3. **Third-party package imports** (`package:dio/...`)
+4. **Project imports** (`package:mvvm_boilerplate/...`)
+5. **Relative imports** (only within same feature/module)
+
+**Rules:**
+- Use absolute imports (`package:mvvm_boilerplate/...`) for cross-layer imports
+- Use relative imports only within the same feature/module
+- Separate each group with a blank line
+- Sort imports alphabetically within each group
+
+## File Placement Rules
+
+### Where to Place New Files
+
+1. **New Feature** → `presentation/features/{feature_name}/`
+   - Follow feature module structure (view/ and viewmodel/)
+
+2. **Reusable UI Component** → `presentation/common/`
+   - Use descriptive names: `custom_button.dart`, `loading_indicator.dart`
+
+3. **Data Model** → `data/models/{model_name}/`
+   - Create directory for each model
+   - Include both `.dart` and `.g.dart` files
+   - Export from `data/models/index.dart`
+
+4. **Repository** → `data/repositories/`
+   - Extend `BaseRepository` for common functionality
+
+5. **Data Source** → `data/sources/`
+   - Remote API: `data/sources/remote/`
+   - Local storage: `data/sources/local/`
+
+6. **Utility Function** → `core/utils/`
+   - Create new file if it's a new category
+   - Add to existing file if related
+
+7. **Extension** → `core/utils/`
+   - Use `_extensions.dart` suffix
+   - Examples: `string_extensions.dart`, `textstyle_extensions.dart`
+
+8. **Constant** → `core/constants/`
+   - Group related constants in the same file
+
+9. **Enum** → `core/enums/`
+   - One enum per file
+   - File name matches enum name in snake_case
+
+10. **Route Definition** → `core/route/`
+    - Add route name to `core/enums/route_names.dart`
+    - Add route configuration to `core/route/app_router.dart`
+    - Export page/viewmodel in `core/route/import_list.dart`
+
+11. **Theme/Styling** → `core/theme/`
+    - Use `app_css.dart` for text styles
+    - Use `theme.dart` for theme configuration
+
+12. **Asset Constants** → `core/assets/`
+    - Images: `core/assets/image_assets.dart`
+    - SVGs: `core/assets/svg_assets.dart`
+
+## Separation of Concerns
+
+### Data Layer (`data/`)
+- **Responsibility**: Data fetching, caching, and persistence
+- **Should NOT**: Contain UI code or business logic
+- **Can**: Transform data between formats
+
+### Presentation Layer (`presentation/`)
+- **Responsibility**: UI rendering and user interaction
+- **Should NOT**: Make direct API calls or access data sources
+- **Can**: Use repositories through dependency injection
+
+### Core Layer (`core/`)
+- **Responsibility**: Shared utilities, constants, and configurations
+- **Should NOT**: Contain feature-specific code
+- **Can**: Be used by any layer
+
+## Barrel Exports
+
+Use barrel export files (`index.dart`) to simplify imports:
+- `data/models/index.dart` - Exports all models
+- `core/route/import_list.dart` - Exports feature pages and viewmodels for routing
+
+**Rules:**
+- Only export public APIs
+- Keep barrel files organized and commented
+- Use barrel exports sparingly to avoid circular dependencies
+
+## Best Practices
+
+1. **Keep features independent**: Features should not directly depend on other features
+2. **Use dependency injection**: All dependencies should be injected, not instantiated
+3. **Follow single responsibility**: Each file should have one clear purpose
+4. **Maintain consistency**: Follow existing patterns when adding new code
+5. **Document complex logic**: Add comments for non-obvious code
+6. **Keep files focused**: Split large files into smaller, focused modules
+7. **Use meaningful names**: File and class names should clearly indicate their purpose

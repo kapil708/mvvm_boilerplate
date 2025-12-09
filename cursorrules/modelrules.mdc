@@ -1,0 +1,661 @@
+# Data Model Rules
+
+This document defines the patterns and guidelines for creating data models in the Flutter MVVM boilerplate project.
+
+## Model Structure
+
+Every model must follow this directory structure:
+
+```
+data/models/{model_name}/
+├── {model_name}.dart
+└── {model_name}.g.dart (generated)
+```
+
+**Rules:**
+- Model names should be singular and descriptive (e.g., `user`, `product`, `order_item`)
+- Use `snake_case` for model directory names
+- Use `PascalCase` for model class names
+- Each model gets its own directory
+- Generated files (`.g.dart`) are created automatically
+
+## Creating a New Model
+
+### Step 1: Create Model Directory
+
+Create directory: `lib/data/models/{model_name}/`
+
+### Step 2: Create Model File
+
+Create `{model_name}.dart` in the model directory:
+
+```dart
+import 'dart:core';
+
+import 'package:json_annotation/json_annotation.dart';
+
+part '{model_name}.g.dart';
+
+@JsonSerializable()
+class {ModelName} {
+  // Required fields (non-nullable)
+  int id;
+  String name;
+  
+  // Optional fields (nullable)
+  String? description;
+  int? quantity;
+  
+  // List fields
+  List<String>? tags;
+  List<{NestedModel}>? items;
+  
+  // Nested model fields
+  {NestedModel}? nestedModel;
+  
+  // DateTime fields (stored as String in JSON)
+  String? createdAt;
+  String? updatedAt;
+
+  {ModelName}({
+    required this.id,
+    required this.name,
+    this.description,
+    this.quantity,
+    this.tags,
+    this.items,
+    this.nestedModel,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory {ModelName}.fromJson(Map<String, dynamic> json) => _${ModelName}FromJson(json);
+  Map<String, dynamic> toJson() => _${ModelName}ToJson(this);
+}
+```
+
+### Step 3: Generate Model Code
+
+Run the build runner to generate the `.g.dart` file:
+
+```bash
+dart run build_runner build
+```
+
+Or watch for changes:
+
+```bash
+dart run build_runner watch
+```
+
+### Step 4: Export Model
+
+Add export to `lib/data/models/index.dart`:
+
+```dart
+export '{model_name}/{model_name}.dart';
+```
+
+## Model Patterns
+
+### Required vs Optional Fields
+
+**Required Fields (Non-nullable):**
+- Use non-nullable types (`int`, `String`, `bool`, etc.)
+- Mark as `required` in constructor
+- Use when the field is always present in API response
+
+```dart
+@JsonSerializable()
+class User {
+  int id;              // Required
+  String username;     // Required
+  String email;        // Required
+  
+  User({
+    required this.id,
+    required this.username,
+    required this.email,
+  });
+}
+```
+
+**Optional Fields (Nullable):**
+- Use nullable types (`int?`, `String?`, `bool?`, etc.)
+- Don't mark as `required` in constructor
+- Use when the field may be missing or null in API response
+
+```dart
+@JsonSerializable()
+class Product {
+  int id;              // Required
+  String? description; // Optional
+  double? price;       // Optional
+  
+  Product({
+    required this.id,
+    this.description,
+    this.price,
+  });
+}
+```
+
+### Nested Models
+
+When a model contains another model, create the nested model in the same file or a separate file:
+
+**Option 1: Nested model in same file (for closely related models)**
+
+```dart
+@JsonSerializable()
+class Product {
+  int id;
+  Dimensions? dimensions;  // Nested model
+  Meta? meta;              // Nested model
+  
+  Product({
+    required this.id,
+    this.dimensions,
+    this.meta,
+  });
+  
+  factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
+  Map<String, dynamic> toJson() => _$ProductToJson(this);
+}
+
+@JsonSerializable()
+class Dimensions {
+  double? width;
+  double? height;
+  double? depth;
+  
+  Dimensions({
+    this.width,
+    this.height,
+    this.depth,
+  });
+  
+  factory Dimensions.fromJson(Map<String, dynamic> json) => _$DimensionsFromJson(json);
+  Map<String, dynamic> toJson() => _$DimensionsToJson(this);
+}
+
+@JsonSerializable()
+class Meta {
+  String? createdAt;
+  String? updatedAt;
+  
+  Meta({
+    this.createdAt,
+    this.updatedAt,
+  });
+  
+  factory Meta.fromJson(Map<String, dynamic> json) => _$MetaFromJson(json);
+  Map<String, dynamic> toJson() => _$MetaToJson(this);
+}
+```
+
+**Option 2: Separate file (for reusable models)**
+
+```dart
+// models/address/address.dart
+@JsonSerializable()
+class Address {
+  String street;
+  String city;
+  // ...
+}
+
+// models/user/user.dart
+import 'package:mvvm_boilerplate/data/models/address/address.dart';
+
+@JsonSerializable()
+class User {
+  int id;
+  Address? address;  // Import nested model
+  // ...
+}
+```
+
+### List Fields
+
+Handle list fields properly:
+
+```dart
+@JsonSerializable()
+class Product {
+  List<String>? tags;           // List of primitives
+  List<Review>? reviews;        // List of nested models
+  
+  Product({
+    this.tags,
+    this.reviews,
+  });
+}
+
+@JsonSerializable()
+class Review {
+  int? rating;
+  String? comment;
+  // ...
+}
+```
+
+### Type Conversions
+
+JSON serialization handles type conversions automatically:
+
+```dart
+// JSON number to int
+int id;  // json['id'] as num).toInt()
+
+// JSON number to double
+double price;  // (json['price'] as num)?.toDouble()
+
+// JSON string to int (if needed, use custom converter)
+@JsonKey(fromJson: _stringToInt, toJson: _intToString)
+int? customId;
+
+static int? _stringToInt(String? value) => value != null ? int.tryParse(value) : null;
+static String? _intToString(int? value) => value?.toString();
+```
+
+### Custom JSON Field Names
+
+Use `@JsonKey` annotation to map different field names:
+
+```dart
+@JsonSerializable()
+class User {
+  @JsonKey(name: 'first_name')
+  String firstName;
+  
+  @JsonKey(name: 'last_name')
+  String lastName;
+  
+  @JsonKey(name: 'access_token')
+  String accessToken;
+}
+```
+
+### Default Values
+
+Use `@JsonKey` with `defaultValue` for default values:
+
+```dart
+@JsonSerializable()
+class Product {
+  @JsonKey(defaultValue: 0)
+  int quantity;
+  
+  @JsonKey(defaultValue: '')
+  String description;
+}
+```
+
+## Model Usage in Repositories
+
+### Single Model Response
+
+```dart
+// In APIRepository
+Future<Either<RemoteFailure, User>> login(String stringJson) async {
+  return safeApiCall<User>(
+    apiCall: () => restClient.login(stringJson),
+    modelFromJson: (json) => User.fromJson(json),
+  );
+}
+```
+
+### List Model Response
+
+```dart
+// In APIRepository
+Future<Either<RemoteFailure, List<Product>>> products() async {
+  return safeApiCallList<Product>(
+    apiCall: () => restClient.products(),
+    modelFromJson: (json) => Product.fromJson(json),
+    listKey: 'products',  // Key containing the list in JSON response
+  );
+}
+```
+
+### Using Models in Cubits
+
+```dart
+class HomeCubit extends Cubit<HomeState> {
+  User? user;
+  List<Product> products = [];
+  
+  void loadUser() async {
+    var response = await apiRepository.getUser();
+    response.fold(
+      (failure) => emit(HomeError(message: failure.message)),
+      (data) {
+        user = data;  // Store model
+        emit(HomeUpdate(DateTime.now()));
+      },
+    );
+  }
+}
+```
+
+### Converting Model to JSON
+
+```dart
+// Save user to preferences
+preferencesProvider.setUser(jsonEncode(user.toJson()));
+
+// Load user from preferences
+var userData = preferencesProvider.getUser();
+if (userData != null) {
+  user = User.fromJson(jsonDecode(userData));
+}
+```
+
+## Complete Model Examples
+
+### Example 1: Simple Model (User)
+
+```dart
+import 'dart:core';
+
+import 'package:json_annotation/json_annotation.dart';
+
+part 'user.g.dart';
+
+@JsonSerializable()
+class User {
+  int id;
+  String username;
+  String email;
+  String firstName;
+  String lastName;
+  String gender;
+  String image;
+  String accessToken;
+  String refreshToken;
+
+  User({
+    required this.id,
+    required this.username,
+    required this.email,
+    required this.firstName,
+    required this.lastName,
+    required this.gender,
+    required this.image,
+    required this.accessToken,
+    required this.refreshToken,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
+  Map<String, dynamic> toJson() => _$UserToJson(this);
+}
+```
+
+### Example 2: Complex Model with Nested Models (Product)
+
+```dart
+import 'dart:core';
+
+import 'package:json_annotation/json_annotation.dart';
+
+part 'product.g.dart';
+
+@JsonSerializable()
+class Product {
+  int? id;
+  String? title;
+  String? description;
+  String? category;
+  double? price;
+  double? discountPercentage;
+  double? rating;
+  int? stock;
+  List<String>? tags;
+  String? brand;
+  String? sku;
+  int? weight;
+  Dimensions? dimensions;
+  String? warrantyInformation;
+  String? shippingInformation;
+  String? availabilityStatus;
+  List<Reviews>? reviews;
+  String? returnPolicy;
+  int? minimumOrderQuantity;
+  Meta? meta;
+  String? thumbnail;
+  List<String>? images;
+
+  Product({
+    this.id,
+    this.title,
+    this.description,
+    this.category,
+    this.price,
+    this.discountPercentage,
+    this.rating,
+    this.stock,
+    this.tags,
+    this.brand,
+    this.sku,
+    this.weight,
+    this.dimensions,
+    this.warrantyInformation,
+    this.shippingInformation,
+    this.availabilityStatus,
+    this.reviews,
+    this.returnPolicy,
+    this.minimumOrderQuantity,
+    this.meta,
+    this.thumbnail,
+    this.images,
+  });
+
+  factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
+  Map<String, dynamic> toJson() => _$ProductToJson(this);
+}
+
+@JsonSerializable()
+class Dimensions {
+  double? width;
+  double? height;
+  double? depth;
+
+  Dimensions({
+    this.width,
+    this.height,
+    this.depth,
+  });
+
+  factory Dimensions.fromJson(Map<String, dynamic> json) => _$DimensionsFromJson(json);
+  Map<String, dynamic> toJson() => _$DimensionsToJson(this);
+}
+
+@JsonSerializable()
+class Reviews {
+  int? rating;
+  String? comment;
+  String? date;
+  String? reviewerName;
+  String? reviewerEmail;
+
+  Reviews({
+    this.rating,
+    this.comment,
+    this.date,
+    this.reviewerName,
+    this.reviewerEmail,
+  });
+
+  factory Reviews.fromJson(Map<String, dynamic> json) => _$ReviewsFromJson(json);
+  Map<String, dynamic> toJson() => _$ReviewsToJson(this);
+}
+
+@JsonSerializable()
+class Meta {
+  String? createdAt;
+  String? updatedAt;
+  String? barcode;
+  String? qrCode;
+
+  Meta({
+    this.createdAt,
+    this.updatedAt,
+    this.barcode,
+    this.qrCode,
+  });
+
+  factory Meta.fromJson(Map<String, dynamic> json) => _$MetaFromJson(json);
+  Map<String, dynamic> toJson() => _$MetaToJson(this);
+}
+```
+
+## Model File Template
+
+Use this template when creating a new model:
+
+```dart
+import 'dart:core';
+
+import 'package:json_annotation/json_annotation.dart';
+
+part '{model_name}.g.dart';
+
+@JsonSerializable()
+class {ModelName} {
+  // Required fields
+  int id;
+  String name;
+  
+  // Optional fields
+  String? description;
+  int? quantity;
+  
+  // List fields
+  List<String>? tags;
+  
+  // Nested models
+  // {NestedModel}? nestedModel;
+  
+  // Timestamps
+  String? createdAt;
+  String? updatedAt;
+
+  {ModelName}({
+    required this.id,
+    required this.name,
+    this.description,
+    this.quantity,
+    this.tags,
+    // this.nestedModel,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory {ModelName}.fromJson(Map<String, dynamic> json) => _${ModelName}FromJson(json);
+  Map<String, dynamic> toJson() => _${ModelName}ToJson(this);
+}
+```
+
+## Best Practices
+
+1. **Use json_serializable**: Always use `@JsonSerializable()` annotation for automatic code generation
+2. **Mark required fields**: Use `required` keyword for non-nullable fields
+3. **Use nullable types**: Use nullable types (`?`) for optional fields
+4. **Generate code**: Always run `dart run build_runner build` after creating/modifying models
+5. **Export models**: Always export new models in `data/models/index.dart`
+6. **Keep models simple**: Models should only contain data, no business logic
+7. **Use descriptive names**: Model and field names should be clear and descriptive
+8. **Handle nested models**: Create nested models in the same file if closely related, or separate files if reusable
+9. **Use proper types**: Use appropriate Dart types (int, double, String, bool, List, etc.)
+10. **Don't modify generated files**: Never manually edit `.g.dart` files
+
+## Common Mistakes to Avoid
+
+1. ❌ **Don't forget `@JsonSerializable()`** - Required for code generation
+2. ❌ **Don't forget `part` directive** - Required to include generated code
+3. ❌ **Don't forget to generate code** - Run `build_runner` after creating models
+4. ❌ **Don't export generated files** - Only export the `.dart` file, not `.g.dart`
+5. ❌ **Don't use `var` or `dynamic`** - Use explicit types for all fields
+6. ❌ **Don't add business logic** - Models should only contain data
+7. ❌ **Don't forget `required` keyword** - For non-nullable fields in constructor
+8. ❌ **Don't modify `.g.dart` files** - They are auto-generated
+9. ❌ **Don't forget to export** - Add to `index.dart` barrel file
+10. ❌ **Don't use DateTime directly** - Use String for dates (convert when needed)
+
+## Generated Files
+
+### Understanding Generated Code
+
+The `.g.dart` file contains:
+- `_${ModelName}FromJson()` - Converts JSON to model instance
+- `_${ModelName}ToJson()` - Converts model instance to JSON
+
+**Rules:**
+- Never manually edit generated files
+- Regenerate when model changes: `dart run build_runner build`
+- Delete generated files if needed: `dart run build_runner clean`
+- Generated files are committed to version control
+
+### Build Runner Commands
+
+```bash
+# Generate code once
+dart run build_runner build
+
+# Watch for changes and regenerate automatically
+dart run build_runner watch
+
+# Clean generated files
+dart run build_runner clean
+
+# Build and delete conflicting outputs
+dart run build_runner build --delete-conflicting-outputs
+```
+
+## Model Validation
+
+### Optional: Add Validation Methods
+
+You can add validation methods to models (but keep business logic minimal):
+
+```dart
+@JsonSerializable()
+class User {
+  int id;
+  String email;
+  
+  User({
+    required this.id,
+    required this.email,
+  });
+  
+  // Optional: Validation method
+  bool isValid() {
+    return id > 0 && email.isNotEmpty && email.contains('@');
+  }
+  
+  factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
+  Map<String, dynamic> toJson() => _$UserToJson(this);
+}
+```
+
+## File Locations Reference
+
+- **Models**: `lib/data/models/{model_name}/`
+- **Model Index**: `lib/data/models/index.dart`
+- **Repositories**: `lib/data/repositories/`
+- **Build Runner**: Run from project root
+
+## Dependencies
+
+Required packages in `pubspec.yaml`:
+
+```yaml
+dependencies:
+  json_annotation: ^4.9.0
+
+dev_dependencies:
+  build_runner: ^2.6.0
+  json_serializable: ^6.10.0
+```

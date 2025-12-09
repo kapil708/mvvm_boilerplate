@@ -1,0 +1,604 @@
+# API and Network Layer Rules
+
+This document defines the patterns and guidelines for API client setup, network layer, error handling, and repository patterns in the Flutter MVVM boilerplate project.
+
+## API Client Setup - Retrofit
+
+### RestClient Pattern
+
+The project uses Retrofit for type-safe API client generation. All API endpoints are defined in `RestClient`.
+
+### Creating API Endpoints
+
+Create or update `lib/data/sources/remote/rest_client.dart`:
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:retrofit/retrofit.dart';
+
+//dart pub run build_runner build
+part 'rest_client.g.dart';
+
+@RestApi()
+abstract class RestClient {
+  factory RestClient(Dio dio, {String baseUrl}) = _RestClient;
+
+  // GET request - List endpoint
+  @GET('/{resource}')
+  Future<dynamic> get{Resource}s();
+
+  // GET with path parameter - Single resource
+  @GET('/{resource}/{id}')
+  Future<dynamic> get{Resource}(@Path('id') int id);
+
+  // POST request - Create resource
+  @POST('/{resource}')
+  Future<dynamic> create{Resource}(@Body() Map<String, dynamic> data);
+
+  // PUT request - Update resource
+  @PUT('/{resource}/{id}')
+  Future<dynamic> update{Resource}(@Path('id') int id, @Body() Map<String, dynamic> data);
+
+  // DELETE request - Delete resource
+  @DELETE('/{resource}/{id}')
+  Future<dynamic> delete{Resource}(@Path('id') int id);
+
+  // GET with query parameters
+  @GET('/{resource}')
+  Future<dynamic> search{Resource}s(@Query('q') String query, @Query('page') int page);
+
+  // GET with multiple query parameters
+  @GET('/{resource}')
+  Future<dynamic> filter{Resource}s(@Queries() Map<String, dynamic> filters);
+}
+```
+
+**Template Variables:**
+- `{resource}` - Replace with your resource name (e.g., `products`, `users`, `orders`)
+- `{Resource}` - Replace with PascalCase resource name (e.g., `Product`, `User`, `Order`)
+
+### Retrofit Annotations
+
+**Common Annotations:**
+- `@RestApi()` - Marks class as Retrofit API client
+- `@GET('/path')` - GET request
+- `@POST('/path')` - POST request
+- `@PUT('/path')` - PUT request
+- `@DELETE('/path')` - DELETE request
+- `@PATCH('/path')` - PATCH request
+- `@Path('param')` - Path parameter
+- `@Query('param')` - Query parameter
+- `@Queries()` - Multiple query parameters as Map
+- `@Body()` - Request body
+- `@Header('name')` - Header parameter
+- `@Headers({'key': 'value'})` - Multiple headers
+
+### Return Types
+
+**Rule**: Always use `Future<dynamic>` as return type in RestClient methods.
+
+```dart
+// ✅ CORRECT
+@GET('/products')
+Future<dynamic> products();
+
+// ❌ WRONG - Don't use specific types
+@GET('/products')
+Future<List<Product>> products();
+```
+
+**Reason**: The actual deserialization happens in the repository layer using `safeApiCall` or `safeApiCallList`.
+
+### Generating RestClient Code
+
+After creating/updating RestClient, generate the code:
+
+```bash
+dart run build_runner build
+```
+
+Or watch for changes:
+
+```bash
+dart run build_runner watch
+```
+
+**Rules:**
+- Never manually edit `rest_client.g.dart`
+- Regenerate after any RestClient changes
+- Commit generated files to version control
+
+## Dio Configuration
+
+### Dio Client Setup
+
+The Dio client is configured in `lib/data/sources/remote/dio_client.dart`:
+
+```dart
+Dio buildDioClient(String baseUrl) {
+  final dio = Dio(BaseOptions(baseUrl: baseUrl));
+  dio
+    ..options.baseUrl = baseUrl
+    ..options.contentType = 'application/json'
+    ..options.connectTimeout = Duration(seconds: 30)
+    ..options.receiveTimeout = Duration(seconds: 30)
+    ..options.sendTimeout = Duration(seconds: 30)
+    ..options.headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
+  dio.interceptors.clear();
+  dio.interceptors.addAll([
+    TokenInterceptor(),
+    PrettyDioLogger(
+      requestHeader: true,
+      requestBody: true,
+      responseBody: true,
+      responseHeader: false,
+      error: true,
+      compact: true,
+      maxWidth: 90,
+      enabled: kDebugMode,
+    ),
+  ]);
+
+  return dio;
+}
+```
+
+### BaseOptions Configuration
+
+**Required Settings:**
+- `baseUrl` - API base URL from Environment
+- `contentType` - Always `'application/json'`
+- `connectTimeout` - Connection timeout (30 seconds)
+- `receiveTimeout` - Receive timeout (30 seconds)
+- `sendTimeout` - Send timeout (30 seconds)
+- `headers` - Default headers (Content-Type, Accept)
+
+### TokenInterceptor Pattern
+
+The `TokenInterceptor` automatically adds authentication token and language to requests:
+
+```dart
+class TokenInterceptor extends Interceptor {
+  @override
+  Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    String? authToken = locator.get<PreferencesProvider>().getAuthToken();
+    String? languageCode = locator.get<PreferencesProvider>().getLanguage();
+
+    if (authToken != null && authToken.isNotEmpty) {
+      options.headers['Authorization'] = "Bearer $authToken";
+    }
+    if (languageCode != null && languageCode.isNotEmpty) {
+      options.headers['locale'] = languageCode;
+    }
+    super.onRequest(options, handler);
+  }
+
+  @override
+  Future onResponse(Response response, ResponseInterceptorHandler handler) async {
+    // Handle successful responses if needed
+    super.onResponse(response, handler);
+  }
+
+  @override
+  Future onError(DioException err, ErrorInterceptorHandler handler) async {
+    if (err.response?.statusCode == 401) {
+      _handleUnauthorizedUser();
+    }
+    super.onError(err, handler);
+  }
+
+  void _handleUnauthorizedUser() {
+    // Handle unauthorized access (e.g., logout user)
+    // AppBloc appBloc = locator.get<AppBloc>();
+    // appBloc.logOut();
+  }
+}
+```
+
+**Interceptor Rules:**
+- Always call `super.onRequest/onResponse/onError` at the end
+- Check for null/empty values before adding headers
+- Handle 401 errors for token refresh or logout
+- Use `locator.get<>()` to access dependencies
+
+### PrettyDioLogger Setup
+
+Use `PrettyDioLogger` for debugging in development:
+
+```dart
+PrettyDioLogger(
+  requestHeader: true,      // Log request headers
+  requestBody: true,        // Log request body
+  responseBody: true,       // Log response body
+  responseHeader: false,    // Don't log response headers
+  error: true,              // Log errors
+  compact: true,            // Compact format
+  maxWidth: 90,             // Max line width
+  enabled: kDebugMode,      // Only in debug mode
+)
+```
+
+**Rules:**
+- Always set `enabled: kDebugMode` to disable in production
+- Use compact format for readability
+- Log request/response bodies for debugging
+
+## Repository Patterns
+
+### BaseRepository Extension
+
+All repositories must extend `BaseRepository`:
+
+```dart
+import 'package:dartz/dartz.dart';
+import 'package:mvvm_boilerplate/data/repositories/base_repository.dart';
+import 'package:mvvm_boilerplate/core/network/failures.dart';
+import 'package:mvvm_boilerplate/data/sources/remote/rest_client.dart';
+
+class APIRepository extends BaseRepository {
+  final RestClient restClient;
+
+  APIRepository({required this.restClient});
+
+  // Repository methods here
+}
+```
+
+### Single Model Response - safeApiCall
+
+Use `safeApiCall` for single model responses:
+
+```dart
+Future<Either<RemoteFailure, {ModelName}>> {methodName}({parameters}) async {
+  return safeApiCall<{ModelName}>(
+    apiCall: () => restClient.{restClientMethod}({arguments}),
+    modelFromJson: (json) => {ModelName}.fromJson(json),
+  );
+}
+```
+
+**Template Variables:**
+- `{ModelName}` - Replace with your model class name (e.g., `User`, `Product`, `Order`)
+- `{methodName}` - Replace with your repository method name (e.g., `getUser`, `createProduct`)
+- `{parameters}` - Replace with method parameters (e.g., `int id`, `String stringJson`)
+- `{restClientMethod}` - Replace with RestClient method name
+- `{arguments}` - Replace with arguments passed to RestClient method
+
+**Pattern:**
+- `apiCall` - Function that calls RestClient method
+- `modelFromJson` - Function that deserializes JSON to model
+- Returns `Either<RemoteFailure, T>`
+
+### List Model Response - safeApiCallList
+
+Use `safeApiCallList` for list responses:
+
+```dart
+Future<Either<RemoteFailure, List<{ModelName}>>> {methodName}({parameters}) async {
+  return safeApiCallList<{ModelName}>(
+    apiCall: () => restClient.{restClientMethod}({arguments}),
+    modelFromJson: (json) => {ModelName}.fromJson(json),
+    listKey: '{listKey}',  // Optional: Key containing the list in JSON response
+  );
+}
+```
+
+**Template Variables:**
+- `{ModelName}` - Replace with your model class name (e.g., `Product`, `User`, `Order`)
+- `{methodName}` - Replace with your repository method name (e.g., `getProducts`, `getUsers`)
+- `{parameters}` - Replace with method parameters (if any)
+- `{restClientMethod}` - Replace with RestClient method name
+- `{arguments}` - Replace with arguments passed to RestClient method
+- `{listKey}` - Replace with the key containing the list in JSON (e.g., `'products'`, `'users'`). Use `null` if response is a direct list
+
+**Pattern:**
+- `apiCall` - Function that calls RestClient method
+- `modelFromJson` - Function that deserializes single item JSON to model
+- `listKey` - Optional key containing the list (if response is `{"{listKey}": [...]}`)
+- If `listKey` is null, response should be a direct list `[...]`
+
+### Complete Repository Example
+
+```dart
+class APIRepository extends BaseRepository {
+  final RestClient restClient;
+
+  APIRepository({required this.restClient});
+
+  // Single model - GET by ID
+  Future<Either<RemoteFailure, {ModelName}>> get{Resource}(int id) async {
+    return safeApiCall<{ModelName}>(
+      apiCall: () => restClient.get{Resource}(id),
+      modelFromJson: (json) => {ModelName}.fromJson(json),
+    );
+  }
+
+  // List of models - GET all
+  Future<Either<RemoteFailure, List<{ModelName}>>> get{Resource}s() async {
+    return safeApiCallList<{ModelName}>(
+      apiCall: () => restClient.get{Resource}s(),
+      modelFromJson: (json) => {ModelName}.fromJson(json),
+      listKey: '{resource}s',  // Replace with actual key from API response
+    );
+  }
+
+  // Create with body - POST
+  Future<Either<RemoteFailure, {ModelName}>> create{Resource}(Map<String, dynamic> data) async {
+    return safeApiCall<{ModelName}>(
+      apiCall: () => restClient.create{Resource}(data),
+      modelFromJson: (json) => {ModelName}.fromJson(json),
+    );
+  }
+
+  // Update - PUT
+  Future<Either<RemoteFailure, {ModelName}>> update{Resource}(int id, Map<String, dynamic> data) async {
+    return safeApiCall<{ModelName}>(
+      apiCall: () => restClient.update{Resource}(id, data),
+      modelFromJson: (json) => {ModelName}.fromJson(json),
+    );
+  }
+
+  // Delete - DELETE
+  Future<Either<RemoteFailure, void>> delete{Resource}(int id) async {
+    return safeApiCall<void>(
+      apiCall: () => restClient.delete{Resource}(id),
+      modelFromJson: (json) => null,  // No response body for delete
+    );
+  }
+}
+```
+
+**Template Variables:**
+- `{ModelName}` - Replace with your model class name (e.g., `User`, `Product`)
+- `{Resource}` - Replace with PascalCase resource name (e.g., `User`, `Product`)
+- `{resource}` - Replace with lowercase resource name (e.g., `user`, `product`)
+
+## Error Handling
+
+### RemoteFailure Pattern
+
+All API errors are wrapped in `RemoteFailure`:
+
+```dart
+class RemoteFailure {
+  final int statusCode;
+  final String message;
+
+  const RemoteFailure({
+    required this.statusCode,
+    required this.message,
+  });
+}
+```
+
+### Error Handling in safeApiCall
+
+The `safeApiCall` method handles errors automatically:
+
+1. **Network Check**: Checks internet connectivity first
+2. **DioException**: Catches and handles HTTP errors
+3. **Status Code**: Extracts status code and error message
+4. **Response Data**: Tries to extract error message from response
+5. **Generic Errors**: Catches any other exceptions
+
+### Using Either Pattern
+
+Always use `Either<RemoteFailure, T>` for API responses:
+
+```dart
+// In Cubit
+void {methodName}({parameters}) async {
+  var response = await apiRepository.{repositoryMethod}({arguments});
+  
+  response.fold(
+    (failure) => emit({StateName}Error(message: failure.message)),
+    (data) {
+      // Handle success - store data, update state, etc.
+      this.{dataProperty} = data;
+      emit({StateName}Update(DateTime.now()));
+    },
+  );
+}
+```
+
+**Template Variables:**
+- `{methodName}` - Replace with your Cubit method name (e.g., `loadUser`, `fetchProducts`)
+- `{parameters}` - Replace with method parameters
+- `{repositoryMethod}` - Replace with repository method name
+- `{arguments}` - Replace with arguments passed to repository method
+- `{StateName}` - Replace with your state class name (e.g., `User`, `Product`)
+- `{dataProperty}` - Replace with property name to store data (e.g., `user`, `products`)
+
+**fold() Pattern:**
+- First parameter: Error handler (Left - RemoteFailure)
+- Second parameter: Success handler (Right - Data)
+
+### Status Code Handling
+
+The `BaseRepository` provides user-friendly error messages for common status codes:
+
+- `400` - Bad Request
+- `401` - Unauthorized
+- `403` - Forbidden
+- `404` - Not Found
+- `408` - Request Timeout
+- `409` - Conflict
+- `422` - Unprocessable Entity
+- `429` - Too Many Requests
+- `500` - Internal Server Error
+- `502` - Bad Gateway
+- `503` - Service Unavailable
+- `504` - Gateway Timeout
+
+### Network Connectivity Check
+
+The `safeApiCall` method checks network connectivity using `hasInternetConnection()`:
+
+```dart
+if (await hasInternetConnection()) {
+  // Make API call
+} else {
+  return Left(RemoteFailure(
+    statusCode: 12163,
+    message: 'No internet connection',
+  ));
+}
+```
+
+**Network Check Rules:**
+- Always check connectivity before API calls
+- Return specific error code (12163) for no internet
+- Provide user-friendly message
+
+## Dependency Injection
+
+### Registering RestClient
+
+Register RestClient in `service_locator.dart`:
+
+```dart
+Future<void> setupLocator() async {
+  // Sources
+  final dio = buildDioClient(Environment.apiUrl);
+  locator.registerLazySingleton(() => RestClient(dio));
+  
+  // Repositories
+  locator.registerLazySingleton(() => APIRepository(restClient: locator<RestClient>()));
+}
+```
+
+**Registration Rules:**
+- Register Dio client first (used by RestClient)
+- Register RestClient as `LazySingleton`
+- Register repositories as `LazySingleton`
+- Use `Environment.apiUrl` for base URL
+
+## Complete API Setup Example
+
+### Step-by-Step Guide to Add New API Call
+
+#### Step 1: Define Endpoint in RestClient
+
+```dart
+@RestApi()
+abstract class RestClient {
+  factory RestClient(Dio dio, {String baseUrl}) = _RestClient;
+
+  // Add your new endpoint here
+  @GET('/{resource}/{id}')
+  Future<dynamic> get{Resource}(@Path('id') int id);
+}
+```
+
+**Replace:**
+- `{resource}` with your resource name (e.g., `users`, `products`, `orders`)
+- `{Resource}` with PascalCase resource name (e.g., `User`, `Product`, `Order`)
+
+#### Step 2: Generate Code
+
+```bash
+dart run build_runner build
+```
+
+#### Step 3: Add Repository Method
+
+```dart
+class APIRepository extends BaseRepository {
+  final RestClient restClient;
+
+  APIRepository({required this.restClient});
+
+  // Add your new repository method
+  Future<Either<RemoteFailure, {ModelName}>> get{Resource}(int id) async {
+    return safeApiCall<{ModelName}>(
+      apiCall: () => restClient.get{Resource}(id),
+      modelFromJson: (json) => {ModelName}.fromJson(json),
+    );
+  }
+}
+```
+
+**Replace:**
+- `{ModelName}` with your model class name
+- `{Resource}` with PascalCase resource name
+
+#### Step 4: Use in Cubit
+
+```dart
+class {Resource}Cubit extends Cubit<{Resource}State> {
+  final APIRepository apiRepository;
+
+  {Resource}Cubit({required this.apiRepository}) : super({Resource}Initial());
+
+  void load{Resource}(int id) async {
+    emit({Resource}Loading());
+    
+    var response = await apiRepository.get{Resource}(id);
+    
+    response.fold(
+      (failure) => emit({Resource}Error(message: failure.message)),
+      (data) => emit({Resource}Loaded(data)),
+    );
+  }
+}
+```
+
+**Replace:**
+- `{Resource}` with PascalCase resource name throughout
+
+## Best Practices
+
+1. **Always extend BaseRepository**: Use `safeApiCall` and `safeApiCallList` for error handling
+2. **Use Either pattern**: Always return `Either<RemoteFailure, T>`
+3. **Handle errors in Cubit**: Use `fold()` to handle success/failure
+4. **Check network connectivity**: Done automatically in `safeApiCall`
+5. **Use dynamic return type**: In RestClient, always use `Future<dynamic>`
+6. **Generate code**: Always run `build_runner` after RestClient changes
+7. **Register dependencies**: Register RestClient and repositories in service locator
+8. **Use interceptors**: TokenInterceptor handles auth tokens automatically
+9. **Log in debug mode**: Use PrettyDioLogger only in debug mode
+10. **Handle 401 errors**: Implement logout or token refresh in TokenInterceptor
+
+## Common Mistakes to Avoid
+
+1. ❌ **Don't use specific return types in RestClient** - Always use `Future<dynamic>`
+2. ❌ **Don't handle errors manually** - Use `safeApiCall` which handles errors automatically
+3. ❌ **Don't forget network check** - `safeApiCall` does this automatically
+4. ❌ **Don't modify generated files** - Never edit `rest_client.g.dart`
+5. ❌ **Don't forget to generate code** - Run `build_runner` after RestClient changes
+6. ❌ **Don't register as Factory** - RestClient should be `LazySingleton`
+7. ❌ **Don't hardcode base URL** - Use `Environment.apiUrl`
+8. ❌ **Don't forget interceptors** - Always add TokenInterceptor and PrettyDioLogger
+9. ❌ **Don't log in production** - Set `enabled: kDebugMode` for PrettyDioLogger
+10. ❌ **Don't ignore 401 errors** - Handle unauthorized access in TokenInterceptor
+
+## File Locations Reference
+
+- **RestClient**: `lib/data/sources/remote/rest_client.dart`
+- **Dio Client**: `lib/data/sources/remote/dio_client.dart`
+- **Base Repository**: `lib/data/repositories/base_repository.dart`
+- **API Repository**: `lib/data/repositories/api_repository.dart`
+- **Remote Failure**: `lib/core/network/failures.dart`
+- **Network Info**: `lib/core/utils/network_info.dart`
+- **Service Locator**: `lib/di/service_locator.dart`
+- **Environment**: `lib/di/environment.dart`
+
+## Dependencies
+
+Required packages in `pubspec.yaml`:
+
+```yaml
+dependencies:
+  dio: ^5.8.0+1
+  retrofit: ^4.7.0
+  dartz: ^0.10.1
+  pretty_dio_logger: ^1.4.0
+
+dev_dependencies:
+  retrofit_generator: ^10.0.1
+  build_runner: ^2.6.0
+```

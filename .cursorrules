@@ -1,0 +1,113 @@
+# Flutter MVVM Architecture Rules
+
+This project follows MVVM architecture with Bloc/Cubit as the ViewModel layer. Always maintain these patterns and structure.
+
+## Rule Files Reference
+
+All detailed rules are organized in modular files within the `cursorrules/` directory. Reference the appropriate rule file based on your task:
+
+### Core Rules
+- **Project Structure**: [mdc:cursorrules/structurerules.mdc] - Directory organization, file placement, naming conventions
+- **Theme & Styling**: [mdc:cursorrules/themerules.mdc] - Theme configuration, styling patterns, design system
+- **Feature Development**: [mdc:cursorrules/featurerules.mdc] - Feature module patterns, view/viewmodel guidelines
+- **Data Models**: [mdc:cursorrules/modelrules.mdc] - Model creation, JSON serialization, data layer patterns
+- **State Management**: [mdc:cursorrules/staterules.mdc] - Bloc/Cubit patterns, state management best practices (to be added)
+- **Navigation**: [mdc:cursorrules/navigationrules.mdc] - Routing, navigation patterns, route configuration (to be added)
+- **API & Network**: [mdc:cursorrules/apirules.mdc] - API client setup, network layer, error handling
+- **Dependency Injection**: [mdc:cursorrules/dirules.mdc] - GetIt setup, service registration patterns (to be added)
+
+## Architecture Overview
+
+- **Pattern**: MVVM (Model-View-ViewModel)
+- **State Management**: Bloc/Cubit as ViewModel
+- **Dependency Injection**: GetIt
+- **Navigation**: GoRouter
+- **Network**: Dio + Retrofit
+- **Local Storage**: SharedPreferences
+- **Localization**: Flutter Intl
+
+## Quick Reference
+
+### Project Structure
+For complete structure details, see: [mdc:cursorrules/structurerules.mdc]
+
+```
+lib/
+├── core/                    # Shared utilities and configurations
+├── data/                    # Data layer (models, repositories, sources)
+├── di/                      # Dependency injection
+├── l10n/                    # Localization files
+└── presentation/            # Presentation layer (UI)
+    ├── app/                 # App-level configuration
+    ├── common/              # Reusable UI components
+    └── features/            # Feature-based modules
+```
+
+### Naming Conventions
+For detailed naming rules, see: [mdc:cursorrules/structurerules.mdc]
+
+- **Files**: `snake_case.dart`
+- **Directories**: `snake_case`
+- **Classes**: `PascalCase`
+- **Constants**: `UPPER_SNAKE_CASE`
+
+### Feature Structure
+For feature development guidelines, see: [mdc:cursorrules/featurerules.mdc]
+
+Each feature must have:
+- `view/` - UI components
+- `viewmodel/` - State management (Cubit/Bloc)
+
+## Usage Guidelines
+
+### When Working on Project Structure
+- Refer to: [mdc:cursorrules/structurerules.mdc]
+- Use for: File placement, directory organization, naming conventions
+
+### When Working on Themes/Styling
+- Refer to: [mdc:cursorrules/themerules.mdc]
+- Use for: Theme configuration, styling patterns, design system, text styles, colors, spacing
+
+### When Creating Features
+- Refer to: [mdc:cursorrules/featurerules.mdc]
+- Refer to: [mdc:cursorrules/structurerules.mdc] (for structure)
+- Use for: Feature module creation, view/viewmodel patterns, state management, navigation
+
+### When Working with Data Models
+- Refer to: [mdc:cursorrules/modelrules.mdc]
+- Refer to: [mdc:cursorrules/structurerules.mdc] (for placement)
+- Use for: Model creation, JSON serialization, data layer patterns, json_serializable usage
+
+### When Working with State Management
+- Refer to: [mdc:cursorrules/staterules.mdc] (when available)
+- Use for: Bloc/Cubit patterns, state management best practices
+
+### When Working on Navigation
+- Refer to: [mdc:cursorrules/navigationrules.mdc] (when available)
+- Use for: Routing, navigation patterns, route configuration
+
+### When Working on API/Network
+- Refer to: [mdc:cursorrules/apirules.mdc]
+- Use for: API client setup, network layer, error handling, Retrofit, Dio, repository patterns
+
+### When Setting Up Dependencies
+- Refer to: [mdc:cursorrules/dirules.mdc] (when available)
+- Use for: GetIt setup, service registration patterns
+
+## Important Guidelines
+
+1. **Always follow established patterns**: Reference the appropriate rule file(s) for your task
+2. **Maintain separation of concerns**: Data, presentation, and core layers must remain independent
+3. **Use dependency injection**: All dependencies should be injected via GetIt, never instantiated directly
+4. **Follow naming conventions**: Strictly adhere to naming conventions defined in [mdc:cursorrules/structurerules.mdc]
+5. **Keep features independent**: Features should not directly depend on other features
+6. **Use absolute imports**: Prefer absolute imports (`package:mvvm_boilerplate/...`) for cross-layer imports
+7. **Place files correctly**: Always place files in appropriate directories as defined in [mdc:cursorrules/structurerules.mdc]
+
+## Adding New Rule Files
+
+When adding a new rule file to `cursorrules/`:
+1. Create the `.mdc` file in `cursorrules/` directory
+2. Add a reference in the "Rule Files Reference" section above
+3. Add usage guidelines in the "Usage Guidelines" section if needed
+4. Update this file to link to the new rule file
